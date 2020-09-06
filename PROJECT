@@ -1,0 +1,8 @@
+domain: operator.io
+multigroup: true
+repo: cronjob
+resources:
+- group: batch
+  kind: CronJob
+  version: v1alpha1
+version: "2"
