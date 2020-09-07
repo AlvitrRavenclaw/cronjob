@@ -59,6 +59,7 @@ type CronJobReconciler struct {
 func (r *CronJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("cronjob", req.NamespacedName)
+	log.V(1).Info("ctrl.Request", "request", req)
 
 	// your logic here
 	var cronJob batchv1alpha1.CronJob
@@ -73,6 +74,7 @@ func (r *CronJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		log.Error(err, "unable to list child jobs")
 		return ctrl.Result{}, err
 	}
+	log.V(1).Info("childJobs", "jobs", childJobs)
 
 	var mostRecentTime *time.Time
 	jobsMap := map[batchv1.JobConditionType][]*batchv1.Job{
@@ -206,6 +208,11 @@ func (r *CronJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return scheduleResult, nil
 	}
 
+	if cronJob.Spec.ConcurrentPolicy == batchv1alpha1.ForbidConcurrent && len(jobsMap[JobActive]) > 0 {
+		log.V(1).Info("concurrency policy blocks concurrent runs, skipping", "run active", len(jobsMap[JobActive]))
+		return scheduleResult, nil
+	}
+
 	if cronJob.Spec.ConcurrentPolicy == batchv1alpha1.ReplaceConcurrent {
 		activeJobs := jobsMap[JobActive]
 		for i := 0; i < len(activeJobs); i++ {
@@ -329,7 +336,7 @@ func indexerFunc(obj runtime.Object) []string {
 	if owner == nil {
 		return nil
 	}
-	if owner.APIVersion != APIVersion || owner.Kind != "Cronjob" {
+	if owner.APIVersion != APIVersion || owner.Kind != "CronJob" {
 		return nil
 	}
 	return []string{owner.Name}
