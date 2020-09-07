@@ -234,8 +234,14 @@ func (r *CronJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *CronJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	err := mgr.GetFieldIndexer().IndexField(&batchv1.Job{}, jobOwnerKey, indexerFunc)
+	if err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&batchv1alpha1.CronJob{}).
+		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
